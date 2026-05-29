@@ -632,14 +632,17 @@ function getTipo(prop) {
   const t = [];
   const opType = (prop.operations || []).map(o => o.type).join(' ').toLowerCase();
   const propType = (prop.property_type || '').toLowerCase();
-  const tags = (prop.tags || []).join(' ').toLowerCase();
+  const title = (prop.title || '').toLowerCase();
 
-  if (opType.includes('sale') || opType.includes('venta')) t.push('venta');
-  if (opType.includes('rental') || opType.includes('renta')) t.push('renta');
+  if (opType.includes('sale')) t.push('venta');
+  if (opType.includes('rental')) t.push('renta');
   if (propType.includes('terreno') || propType.includes('land')) t.push('terreno');
   if (propType.includes('depart') || propType.includes('apart') || propType.includes('condo')) t.push('departamento');
-  if (tags.includes('lujo') || tags.includes('luxury') || tags.includes('premium')) t.push('lujo');
-  if ((prop.price || 0) > 8000000) t.push('lujo');
+
+  // Detectar lujo por precio o keywords
+  const amount = (prop.operations || [])[0]?.amount || 0;
+  if (amount >= 8000000 && opType.includes('sale')) t.push('lujo');
+  if (title.includes('lujo') || title.includes('penthouse') || title.includes('ph ') || title.includes('exclusiv')) t.push('lujo');
 
   return t.join(' ') || 'venta';
 }
@@ -650,8 +653,11 @@ function buildCard(prop) {
   const ops = prop.operations || [];
   const op = ops[0] || {};
   const price = formatPrice(op.amount, op.currency, op.type);
-  const img = prop.property_images && prop.property_images[0]
-    ? `<img src="${prop.property_images[0].url}" alt="${prop.title}" loading="lazy">`
+
+  // EasyBroker usa title_image_full directamente
+  const imgUrl = prop.title_image_full || prop.title_image_thumb || '';
+  const img = imgUrl
+    ? `<img src="${imgUrl}" alt="${prop.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0">`
     : `<span class="prop-thumb-placeholder">🏠</span>`;
 
   const venta = tipo.includes('venta') ? `<span class="badge">Venta</span>` : '';
@@ -668,7 +674,8 @@ function buildCard(prop) {
       ? `<span class="spec">${iconArea} ${Math.round(prop.lot_size)} m²</span>`
       : '';
 
-  const loc = [prop.location?.name, prop.city].filter(Boolean).join(', ') || 'Mérida, Yucatán';
+  // EasyBroker devuelve location como string directo
+  const loc = prop.location || 'Mérida, Yucatán';
 
   return `
   <article class="prop-card" data-t="${tipo}" data-id="${prop.public_id}">
